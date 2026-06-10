@@ -1,21 +1,23 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[ ]:
+# In[31]:
 
 
 import pandas as pd
 import numpy as np
 import seaborn as sns
+from pathlib import Path
 import matplotlib.pyplot as plt
 from statannotations.Annotator import Annotator
 from itertools import combinations
 import scipy.stats as stats
 import statsmodels.api as sm
 from statsmodels.formula.api import ols
+Path("promoter/results").mkdir(parents=True, exist_ok=True)
 
 
-# In[ ]:
+# In[32]:
 
 
 class qPCRdf: # define a class that includes qPCR dataframe obtained from qPCR machine
@@ -101,9 +103,10 @@ class qPCRdf: # define a class that includes qPCR dataframe obtained from qPCR m
         groups=[group["delta_delta_ct"] for name,group in df.groupby('Content')]
         stat, p = stats.levene(*groups)
         print(f'The p value for levene test is {p}'), print(anova_table)
-        sm.qqplot(residuals, line="45")
+        fig=sm.qqplot(residuals, line="45")
         plt.title("Q-Q plot of residuals")
         plt.show()
+        return fig
 
     def repoted_data(self,qpcr_objects,base_line):
         df = self.Delta_Delta_Ct_from_plates(qpcr_objects,base_line)
@@ -129,14 +132,16 @@ class qPCRdf: # define a class that includes qPCR dataframe obtained from qPCR m
 
         plt.tight_layout()
         plt.show()
+        return fig
 
     def plot_difference(self,qpcr_objects, base_line ,unique_group, value,statistic_test):
         '''
         Run and produce a pair-wise comparasion plot between subgroups using the given statistical tests 
         '''
         ct_mean=self.Delta_Delta_Ct_from_plates(qpcr_objects,base_line)
-        ax = sns.boxplot(x=unique_group, y= value, data=ct_mean)
-        sns.stripplot(x=unique_group, y= value, data=ct_mean, color='black', alpha=0.6)
+        fig, ax = plt.subplots(figsize=(6, 5))
+        sns.boxplot(x=unique_group, y= value, data=ct_mean, ax=ax)
+        sns.stripplot(x=unique_group, y= value, data=ct_mean, color='black', alpha=0.6, ax=ax)
         pairs = list(combinations(ct_mean[unique_group].unique(), 2))
         annotator = Annotator(ax, pairs, data=ct_mean, x=unique_group, y= value)
         annotator.configure(test=statistic_test,        # or 't-test_ind', 'Mann-Whitney'
@@ -144,47 +149,39 @@ class qPCRdf: # define a class that includes qPCR dataframe obtained from qPCR m
                             loc='inside')           # or 'outside'
         annotator.apply_and_annotate()
         plt.show()
+        return fig
 
 
-# In[ ]:
+# In[33]:
 
 
 promoter_control=qPCRdf('promoter control -  Quantification Summary.xlsx').remove_outliers()
 promoter_tested=qPCRdf('qPCR test_promoter.xlsx').remove_outliers()
 
 
-# In[ ]:
+# In[34]:
 
 
-promoter_tested.Delta_Ct()
+fig=promoter_control.normality_check([promoter_tested],'ProA1','delta_delta_ct')
+fig.savefig('promoter/results/P40_Promoter_total_linearity_proof.png', dpi=300, bbox_inches="tight")
 
 
-# In[ ]:
+# In[35]:
 
 
-promoter_control.Delta_Delta_Ct_from_plates([promoter_tested], 'ProA1')
+promoter_control.repoted_data([promoter_tested],'PR1.7').to_csv('promoter/results/P40_Promoter_total_summary_table.csv',index=False)
 
 
-# In[ ]:
+# In[36]:
 
 
-promoter_control.normality_check([promoter_tested],'ProA1','delta_delta_ct')
+fig=promoter_control.qc_boxplot([promoter_tested],'PR1.7')
+fig.savefig('promoter/results/P40_Promoter_total_fold_change.png', dpi=300, bbox_inches="tight")
 
 
-# In[ ]:
+# In[37]:
 
 
-promoter_control.repoted_data([promoter_tested],'PR1.7')
-
-
-# In[ ]:
-
-
-promoter_control.qc_boxplot([promoter_tested],'PR1.7')
-
-
-# In[ ]:
-
-
-promoter_control.plot_difference([promoter_tested],'ProA1','Content','delta_delta_ct', 't-test_ind')
+fig=promoter_control.plot_difference([promoter_tested],'ProA1','Content','delta_delta_ct', 't-test_ind')
+fig.savefig('promoter/results/P40_Promoter_total_statistical_test.png', dpi=300, bbox_inches="tight")
 
