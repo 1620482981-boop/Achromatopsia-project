@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[12]:
+# In[1]:
 
 
 import pandas as pd
@@ -14,10 +14,10 @@ from itertools import combinations
 import scipy.stats as stats
 import statsmodels.api as sm
 from statsmodels.formula.api import ols
-Path("promoter/results").mkdir(parents=True, exist_ok=True) # Set up the path for the results
+Path("results").mkdir(parents=True, exist_ok=True) # Set up the path for the results
 
 
-# In[13]:
+# In[2]:
 
 
 class qPCRdf: # define a class that includes qPCR dataframe obtained from qPCR machine
@@ -34,8 +34,8 @@ class qPCRdf: # define a class that includes qPCR dataframe obtained from qPCR m
         #if self.df.loc[self.df['Target'] == 'Control', 'Cq'].notna().any():
             #raise ValueError('Ct value for controls should be NaN,but some are not')
         self.df['TechRep']=self.df.groupby(['Target','Content', 'Sample']).cumcount()
-        self.df = self.df[self.df['Content'].isin(['ProA1', 'PR1.7'])]
-        self.df = self.df[self.df['Cq'].notna()]
+        self.df = self.df[~self.df['Content'].isin(['Uninjected', 'No RNA', 'No enzyme', 'No water'])]
+        self.df=self.df.dropna(subset=['Cq']).reset_index(drop=True) # drop samples with any missing values
 
     def remove_outliers(self):
         def clean_dataframe(group):
@@ -53,6 +53,7 @@ class qPCRdf: # define a class that includes qPCR dataframe obtained from qPCR m
             clean_group['Target'] = target
             clean_group['Content'] = content
             clean_group['Sample'] = sample
+
             return clean_group
 
         self.df = self.df.groupby(['Target', 'Content', 'Sample'], group_keys=False).apply(clean_dataframe).reset_index(drop=True)
@@ -90,6 +91,7 @@ class qPCRdf: # define a class that includes qPCR dataframe obtained from qPCR m
         combined["fold_change"] = 2 ** (-combined["delta_delta_ct"])
         return combined
 
+
     def normality_check(self,qpcr_objects,base_line,para):
         df = self.Delta_Delta_Ct_from_plates(qpcr_objects,base_line)
 
@@ -104,7 +106,6 @@ class qPCRdf: # define a class that includes qPCR dataframe obtained from qPCR m
         print(f'The p value for levene test is {p}'), print(anova_table)
         fig=sm.qqplot(residuals, line="45")
         plt.title("Q-Q plot of residuals")
-        plt.show()
         return fig
 
     def repoted_data(self,qpcr_objects,base_line):
@@ -130,7 +131,6 @@ class qPCRdf: # define a class that includes qPCR dataframe obtained from qPCR m
         axes[1].set_title('Fold_Change comparasion')
 
         plt.tight_layout()
-        plt.show()
         return fig
 
     def plot_difference(self,qpcr_objects, base_line ,unique_group, value,statistic_test):
@@ -147,45 +147,36 @@ class qPCRdf: # define a class that includes qPCR dataframe obtained from qPCR m
                             text_format='star',    # shows *, **, ***
                             loc='inside')           # or 'outside'
         annotator.apply_and_annotate()
-        plt.show()
         return fig
 
 
-# In[14]:
+# In[4]:
 
 
-P12_promoter_control= qPCRdf('P12 promoter control.csv')
+my_qPCR=qPCRdf('wildtype/Chengjie_qPCR_Chrnb4.GFP_pde6c.csv')
+my_qPCR.remove_outliers()
 
 
-# In[23]:
+# In[ ]:
 
 
-P12_promoter_control.repoted_data([],'ProA1').to_csv('promoter/results/P12_Promoter_results_summary_table.csv',index=False)
+my_qPCR.normality_check([],'P12','delta_delta_ct').savefig('results/wildtype_ran_on_pde6c_probe_linearity_check.png', dpi=300, bbox_inches="tight")
 
 
-# In[18]:
+# In[ ]:
 
 
-fig=P12_promoter_control.normality_check([],'ProA1','delta_delta_ct')
-fig.savefig('promoter/results/P12_Promoter_linearity_proof.png', dpi=300, bbox_inches="tight")
+my_qPCR.repoted_data([],'P12').to_csv('results/wildtype_ran_on_pde6c_probe_summary_table.csv', index=False)
 
 
-# In[19]:
+# In[ ]:
 
 
-P12_promoter_control.repoted_data(qpcr_objects=[],base_line='ProA1').to_csv('promoter/results/P12_Promoter_linearity_proof.csv',index=False)
+my_qPCR.qc_boxplot([],'P12').savefig('results/wildtype_ran_on_pde6c_probe_fold_change.png', dpi=300, bbox_inches="tight")
 
 
-# In[20]:
+# In[ ]:
 
 
-fig=P12_promoter_control.qc_boxplot(qpcr_objects=[],base_line='ProA1')
-fig.savefig('promoter/results/P12_Promoter_fold_change.png', dpi=300, bbox_inches="tight")
-
-
-# In[21]:
-
-
-fig=P12_promoter_control.plot_difference([],'ProA1','Content','delta_delta_ct', 't-test_ind')
-fig.savefig('promoter/results/P12_Promoter_statistical_test.png', dpi=300, bbox_inches="tight")
+my_qPCR.plot_difference([],'P12','Content','delta_delta_ct', 't-test_ind').savefig('results/wildtype_ran_on_pde6c_probe_statistic_test.png', dpi=300, bbox_inches="tight")
 

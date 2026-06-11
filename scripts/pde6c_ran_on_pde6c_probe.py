@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[9]:
+# In[1]:
 
 
 import pandas as pd
@@ -14,10 +14,10 @@ from itertools import combinations
 import scipy.stats as stats
 import statsmodels.api as sm
 from statsmodels.formula.api import ols
-Path("wildtype/results").mkdir(parents=True, exist_ok=True)
+Path("results").mkdir(parents=True, exist_ok=True) # Set up the path for the results
 
 
-# In[10]:
+# In[2]:
 
 
 class qPCRdf: # define a class that includes qPCR dataframe obtained from qPCR machine
@@ -29,7 +29,7 @@ class qPCRdf: # define a class that includes qPCR dataframe obtained from qPCR m
 
     def __init__(self,file_name):
         self.file_name = file_name
-        self.df = pd.read_excel(self.file_name)
+        self.df = pd.read_csv(self.file_name)
         self.df = self.df.drop(['Unnamed: 0', 'Fluor', 'SQ','Well'], axis=1, errors='ignore')
         #if self.df.loc[self.df['Target'] == 'Control', 'Cq'].notna().any():
             #raise ValueError('Ct value for controls should be NaN,but some are not')
@@ -91,7 +91,6 @@ class qPCRdf: # define a class that includes qPCR dataframe obtained from qPCR m
         combined["fold_change"] = 2 ** (-combined["delta_delta_ct"])
         return combined
 
-
     def normality_check(self,qpcr_objects,base_line,para):
         df = self.Delta_Delta_Ct_from_plates(qpcr_objects,base_line)
 
@@ -106,7 +105,6 @@ class qPCRdf: # define a class that includes qPCR dataframe obtained from qPCR m
         print(f'The p value for levene test is {p}'), print(anova_table)
         fig=sm.qqplot(residuals, line="45")
         plt.title("Q-Q plot of residuals")
-        plt.show()
         return fig
 
     def repoted_data(self,qpcr_objects,base_line):
@@ -132,7 +130,6 @@ class qPCRdf: # define a class that includes qPCR dataframe obtained from qPCR m
         axes[1].set_title('Fold_Change comparasion')
 
         plt.tight_layout()
-        plt.show()
         return fig
 
     def plot_difference(self,qpcr_objects, base_line ,unique_group, value,statistic_test):
@@ -149,37 +146,39 @@ class qPCRdf: # define a class that includes qPCR dataframe obtained from qPCR m
                             text_format='star',    # shows *, **, ***
                             loc='inside')           # or 'outside'
         annotator.apply_and_annotate()
-        plt.show()
         return fig
 
 
-# In[11]:
+# In[3]:
 
 
-my_qPCR=qPCRdf('Chengjie_qPCR_Chrnb4.GFP_pde6c.xlsx')
+my_qPCR=qPCRdf('wildtype/Pde6c wild type rerun.csv')
 my_qPCR.remove_outliers()
 
 
-# In[17]:
+# In[5]:
 
 
-my_qPCR.repoted_data([],'P12').to_csv('wildtype/results/wildtype_ran_on_pde6c_probe_summary_table.csv', index=False)
+fig=my_qPCR.normality_check([],'P12','delta_delta_ct')
+fig.savefig('results/pde6c_ran_on_pde6c_probe_linearity_proof.png', dpi=300, bbox_inches="tight")
 
 
-# In[14]:
+# In[4]:
 
 
-my_qPCR.normality_check([],'P12','delta_delta_ct').savefig('wildtype/results/wildtype_ran_on_pde6c_probe_linearity_check.png', dpi=300, bbox_inches="tight")
+my_qPCR.repoted_data([],'P12').to_csv("results/pde6c_ran_on_pde6c_probe_summary_table.csv", index=False)
 
 
-# In[15]:
+# In[60]:
 
 
-my_qPCR.qc_boxplot([],'P12').savefig('wildtype/results/wildtype_ran_on_pde6c_probe_fold_change.png', dpi=300, bbox_inches="tight")
+fig=my_qPCR.qc_boxplot([],'P12')
+fig.savefig('results/pde6c_ran_on_pde6c_probe_fold_change.png', dpi=300, bbox_inches="tight")
 
 
-# In[16]:
+# In[61]:
 
 
-my_qPCR.plot_difference([],'P12','Content','delta_delta_ct', 't-test_ind').savefig('wildtype/results/wildtype_ran_on_pde6c_probe_statistic_test.png', dpi=300, bbox_inches="tight")
+fig=my_qPCR.plot_difference([],'P12','Content','delta_delta_ct', 't-test_ind')
+fig.savefig('results/pde6c_ran_on_pde6c_probe_statistical_test.png', dpi=300, bbox_inches="tight")
 
